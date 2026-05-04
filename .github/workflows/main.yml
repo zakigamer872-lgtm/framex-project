@@ -1,0 +1,87 @@
+name: Build FrameX
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2 + Qt6 + FFmpeg
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-qt6-base
+            mingw-w64-x86_64-qt6-multimedia
+            mingw-w64-x86_64-ffmpeg
+
+      - name: Configure CMake
+        run: cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DFFMPEG_DIR=/mingw64
+
+      - name: Build
+        run: cmake --build build --parallel 4
+
+      - name: Collect deploy files
+        shell: pwsh
+        run: |
+          $mingw = "C:\msys64\mingw64"
+          New-Item -ItemType Directory -Force -Path deploy | Out-Null
+          Copy-Item "build\FrameX.exe" deploy\
+          foreach ($dll in @("Qt6Core","Qt6Gui","Qt6Widgets","Qt6Multimedia","Qt6MultimediaWidgets","Qt6Network","Qt6Sql","Qt6OpenGL","Qt6OpenGLWidgets")) {
+            $f = Get-ChildItem "$mingw\bin\$dll.dll" -EA SilentlyContinue
+            if ($f) { Copy-Item $f.FullName deploy\ }
+          }
+          $plugins = "$mingw\share\qt6\plugins"
+          foreach ($dir in @("platforms","imageformats","styles","multimedia","sqldrivers")) {
+            New-Item -ItemType Directory -Force -Path "deploy\$dir" | Out-Null
+            Get-ChildItem "$plugins\$dir\*.dll" -EA SilentlyContinue | Copy-Item -Destination "deploy\$dir"
+          }
+          foreach ($pat in @("avcodec-*","avformat-*","avutil-*","swscale-*","swresample-*","avdevice-*","avfilter-*")) {
+            Get-ChildItem "$mingw\bin\$pat.dll" -EA SilentlyContinue | Copy-Item -Destination deploy\
+          }
+          foreach ($dll in @("libgcc_s_seh-1","libstdc++-6","libwinpthread-1")) {
+            $f = Get-ChildItem "$mingw\bin\$dll.dll" -EA SilentlyContinue
+            if ($f) { Copy-Item $f.FullName deploy\ }
+          }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Create Installer
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe" }
+          New-Item -ItemType Directory -Force -Path installer\output | Out-Null
+          & $iscc installer\setup.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+
+      - name: Upload Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: FrameX-Setup-Windows
+          path: installer/output/*.exe
+          retention-days: 30
+
+      - name: Upload Portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: FrameX-Portable
+          path: deploy/
+          retention-days: 30
