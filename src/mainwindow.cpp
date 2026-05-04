@@ -13,6 +13,8 @@
 #include "settings_manager.h"
 #include "hotkey_manager.h"
 #include "history_manager.h"
+#include "theme_manager.h"
+#include <QStandardPaths>
 
 #include <QApplication>
 #include <QCloseEvent>
