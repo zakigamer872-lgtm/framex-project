@@ -2,7 +2,7 @@
 #include <QObject>
 #include <QString>
 #include <QThread>
-#include <QDateTime>
+#include <QTimer>
 #include "../settings_manager.h"
 
 class ScreenCapture;
