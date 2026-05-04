@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QString>
 #include <QRect>
+#include <QProcess>
 
 class ScreenCapture : public QObject {
     Q_OBJECT
