@@ -1,5 +1,6 @@
 #pragma once
 #include <QObject>
+#include <QTimer>
 #include <QString>
 
 class AudioCapture : public QObject {
