@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QString>
+#include <QDateTime>
 #include <QThread>
 #include <QTimer>
 #include "../settings_manager.h"
